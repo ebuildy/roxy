@@ -10,7 +10,7 @@ gzip_comp_level 6;
 gzip_proxied any;
 gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
 
-{% if service is defined %}
+{% if services is defined %}
 {% for name, service in services.iteritems() %}{% if service.backends is defined %}upstream {{ name }} {
 {% for backend in service.backends %}server {{ backend.address }} fail_timeout=5s max_fails=5;{% endfor %}
 }{% endif %}
@@ -21,7 +21,7 @@ map $service_name $service_upstream
 {
 	default __not_found__;
 	index "ok";
-  {% if service is defined %}{% for name, service in services.iteritems() %}{% if service.backends is defined %}{{ name }} "ok";{% endif %}
+  {% if services is defined %}{% for name, service in services.iteritems() %}{% if service.backends is defined %}{{ name }} "ok";{% endif %}
   {% endfor %}{% endif %}
 }
 
