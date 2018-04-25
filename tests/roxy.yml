@@ -1,0 +1,17 @@
+services:
+
+    back-1:
+        backends:
+        - address: back-1:80
+
+    back-2:
+        backends:
+        - address: back-2
+
+settings:
+  title: test Roxy
+  nginx:
+    dns:
+      resolver: 127.0.0.11
+  www:
+    root: /var/www

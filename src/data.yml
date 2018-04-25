@@ -1,0 +1,25 @@
+services:
+
+    qwant:
+        url: https://www.qwant.com
+        tags: ["public"]
+
+    lite:
+        url: https://lite.qwant.com
+        tags: ["public"]
+
+    facebook:
+        url: https://www.facebook.com
+        tags: ["public"]
+
+    qwant4:
+        url: https://www.qwant.com
+        tags: ["public"]
+
+settings:
+  title: Roxy
+  nginx:
+    dns:
+      resolver: 127.0.0.11
+  tags:
+  - public: #ff0000

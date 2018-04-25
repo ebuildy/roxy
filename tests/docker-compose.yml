@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+
+    roxy:
+        image: ebuildy/roxy-dev
+        build: ../src
+        volumes:
+        - ./roxy.yml:/opt/roxy/data.yml
+        ports:
+        - 80:80
+
+    back-1:
+        image: nginx:1.13-alpine
+
+    back-2:
+        image: nginx:1.13-alpine

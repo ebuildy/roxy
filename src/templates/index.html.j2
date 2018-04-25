@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ settings.title }}</title>
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/bootstrap.min.css" />
+</head>
+
+    <div id="homePage" class="container">
+
+        <style>
+            code
+            {
+                display: block;
+                padding: 5px;
+                background: #141414;
+                font: 0.8em 'Andale Mono', Consolas, 'Courier New';
+                line-height: 1.6em;
+                border-radius: 3px;
+            }
+
+            a.card:hover
+            {
+                text-decoration: none;
+                border-color: navy;
+            }
+
+            a.card img
+            {
+                max-width: 24px;
+                max-height: 24px;
+            }
+        </style>
+
+        <h1><img src="/logo.png" style="width: 64px; height: 64px;" /> {{ settings.title }} <small> {{ env.ROXY_WEB_DOMAIN }}</small></h1>
+
+        <h2 class="mt-4">Services</h2>
+
+        <div class="row">
+            {% if services is defined %}
+            {% for name, service in services|dictsort %}
+            <div class="col-sm-4">
+                {% if service.url is defined %}
+                    {% set url = service.url %}
+                {% else %}
+                    {% set url = "//" ~ name ~ "." ~ env.ROXY_WEB_DOMAIN %}
+                {% endif %}
+                <a href="{{ url }}" title="{{ name }}" class="card mb-4">
+                    <div class="card-body">
+                        <div class="card-title">
+                            <span class="text-primary font-weight-bold"><img src="{{ url }}/favicon.ico"  onerror="this.style.display='none'" /> {{ name }}</span>
+                            {% if service.tags is defined %}{% for tag in service.tags %}
+                            <label class="badge" style="background: {{ settings.tags[tag] }}">{{ tag }}</label>
+                            {% endfor %}{% endif %}
+                        </div>
+                        <p class="card-text text-secondary">
+                            {% if service.url is defined %}
+                                {{ service.url }}
+                            {% else %}
+                            <ul>
+                                {% for backend in service.backends %}
+                                <li>{{ backend | tojson | safe }}</li>
+                                {% endfor %}
+                            </ul>
+                            {% endif %}
+                        </p>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if services is defined %}
+
+        <h2 class="mt-4">DNS</h2>
+
+        <section>
+            <h4>/etc/hosts <small>(if no DNS)</small></h4>
+            <code>
+               (IP) {% for name, service in services.iteritems() %}{{ name }}.{{ env.ROXY_WEB_DOMAIN }} {% endfor %}
+            </code>
+        </section>
+
+        {% endif %}
+
+        <br /><br />
+
+        <footer class="container text-center text-muted">
+            {{ env.ROXY_VERSION }} - generated at {{ build_date }} - Made by Thomas Decaux (@ebuildy) from SubitoLabs
+        </footer>
+
+        <br />
+
+    </div>
+
+</body>
+</html>

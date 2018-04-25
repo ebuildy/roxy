@@ -1,0 +1,174 @@
+access_log  off;
+
+{% if settings.nginx is defined and settings.nginx.dns.resolver is defined %}resolver {{ settings.nginx.dns.resolver }};{% endif %}
+
+client_max_body_size 999M;
+client_body_buffer_size 16M;
+
+gzip on;
+gzip_comp_level 6;
+gzip_proxied any;
+gzip_types text/plain text/css application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript;
+
+{% if service is defined %}
+{% for name, service in services.iteritems() %}{% if service.backends is defined %}upstream {{ name }} {
+{% for backend in service.backends %}server {{ backend.address }} fail_timeout=5s max_fails=5;{% endfor %}
+}{% endif %}
+ {% endfor %}
+{% endif %}
+
+map $service_name $service_upstream
+{
+	default __not_found__;
+	index "ok";
+  {% if service is defined %}{% for name, service in services.iteritems() %}{% if service.backends is defined %}{{ name }} "ok";{% endif %}
+  {% endfor %}{% endif %}
+}
+
+{% if hosts is defined and hosts %}
+map $wanted_host $wanted_host_ip
+{
+	default 127.0.0.1;
+
+{% for host_name, host_ip in hosts.iteritems() %}{{ host_name }} {{ host_ip }};
+  {% endfor %}
+}
+{% endif %}
+
+#add_header X-Frame-Options SAMEORIGIN always;
+#add_header X-Content-Type-Options nosniff always;
+#add_header X-XSS-Protection "1; mode=block" always;
+#add_header Content-Security-Policy "default-src * data:*.{{ env.ROXY_WEB_DOMAIN }}; script-src 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' data:*.{{ env.ROXY_WEB_DOMAIN }}" always;
+#add_header Strict-Transport-Security "max-age=31536000; includeSubdomains; preload" always;
+add_header 'Access-Control-Allow-Origin' '*' always;
+add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+add_header 'Access-Control-Allow-Headers' 'DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type' always;
+add_header 'Access-Control-Max-Age' 1728000 always;
+add_header 'X-Proxied-By' 'Roxy {{ version }}' always;
+
+{% if settings.ssl is defined %}
+ssl_certificate "{{ settings.ssl.cert }}";
+ssl_certificate_key "{{ settings.ssl.cert }}";
+
+# enable session resumption to improve https performance
+# http://vincent.bernat.im/en/blog/2011-ssl-session-reuse-rfc5077.html
+ssl_session_cache shared:SSL:50m;
+ssl_session_timeout 5m;
+
+# enables server-side protection from BEAST attacks
+# http://blog.ivanristic.com/2013/09/is-beast-still-a-threat.html
+ssl_prefer_server_ciphers on;
+# disable SSLv3(enabled by default since nginx 0.8.19) since it's less secure then TLS http://en.wikipedia.org/wiki/Secure_Sockets_Layer#SSL_3.0
+ssl_protocols TLSv1 TLSv1.1 TLSv1.2;
+# ciphers chosen for forward secrecy and compatibility
+# http://blog.ivanristic.com/2013/08/configuring-apache-nginx-and-openssl-for-forward-secrecy.html
+ssl_ciphers "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-SHA384:ECDHE-RSA-AES128-SHA256:ECDHE-RSA-AES256-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES256-SHA256:DHE-RSA-AES128-SHA256:DHE-RSA-AES256-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES256-GCM-SHA384:AES128-GCM-SHA256:AES256-SHA256:AES128-SHA256:AES256-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!MD5:!PSK:!RC4";
+ssl_buffer_size 8k;
+{% endif %}
+
+# Server index HTML page
+server
+{
+  listen              {% if settings.ssl is defined %}443 ssl http2{% else %}80{% endif %};
+  server_name         _;
+  server_name         index.{{ env.ROXY_WEB_DOMAIN }};
+
+	root /var/www;
+
+	index index.html;
+
+  location /
+  {
+	try_files $uri /index.html;
+  }
+}
+
+{% if hosts is defined and hosts %}
+# Serve redirections
+server
+{
+	listen              {% if settings.ssl is defined %}443 ssl http2{% else %}80{% endif %};
+	server_name         ~^(?P<wanted_port>[0-9]+?)-(?P<wanted_host>.+?)\.{{ env.ROXY_WEB_DOMAIN | replace(".", "\.") }}$;
+	server_name         ~^(?P<wanted_port>[0-9]+?)-(?P<wanted_host>.+?)\.{{ env.ROXY_WEB_DOMAIN | replace(".", "\.") }}\.loc$;
+
+	location /
+	{
+		proxy_pass http://$wanted_host_ip:$wanted_port;
+
+		proxy_buffering off;
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+
+		proxy_set_header        Host $http_host;
+
+		# Forward proxied data
+		proxy_set_header        X-Real-IP $remote_addr;
+		proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header        X-Forwarded-Proto $scheme;
+		proxy_set_header        X-Forwarded-Host $http_host;
+		proxy_hide_header		X-Frame-Options;
+	}
+}
+{% endif %}
+
+# Serve services
+server
+{
+  listen              {% if settings.ssl is defined %}443 ssl http2{% else %}80{% endif %};
+  server_name         ~^(?P<service_name>.+?)\.{{ env.ROXY_WEB_DOMAIN | replace(".", "\.") }}$;
+  server_name         ~^(?P<service_name>.+?)\.{{ env.ROXY_WEB_DOMAIN | replace(".", "\.") }}\.loc$;
+
+  location /
+  {
+  		# Redirect unknow service to index
+		if ($service_upstream = "__not_found__")
+		{
+			return 301 $scheme://index.{{ env.ROXY_WEB_DOMAIN }};
+		}
+
+		proxy_pass http://$service_name;
+
+		proxy_buffering off;
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "upgrade";
+
+		proxy_set_header        Host $http_host;
+
+		# Forward proxied data
+		proxy_set_header        X-Real-IP $remote_addr;
+		proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header        X-Forwarded-Proto $scheme;
+		proxy_set_header        X-Forwarded-Host $http_host;
+
+		proxy_connect_timeout       600s;
+		proxy_send_timeout          600s;
+		proxy_read_timeout          600s;
+		send_timeout                600s;
+
+		proxy_hide_header		X-Frame-Options;
+
+		{% if settings.ssl is defined %}
+			{% set redirect_protocol = "https" %}
+		{% else %}
+			{% set redirect_protocol = "http" %}
+		{% endif %}
+
+		{% if redirect_protocol != "http" %}proxy_redirect http:// {{ redirect_protocol }}://;{% endif %}
+  }
+}
+
+{% if settings.ssl is defined %}
+# If https -> redirect traffic on port 80 to https
+server
+{
+	listen 80 default_server;
+	server_name _;
+
+	location /
+	{
+	  return 301 https://$host$request_uri;
+	}
+}
+{% endif %}
