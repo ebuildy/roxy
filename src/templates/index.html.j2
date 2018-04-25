@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/bootstrap.min.css" />
 </head>
 
-    <div id="homePage" class="container">
+    <div id="homePage" class="container-fluid">
 
         <style>
             code
@@ -18,6 +18,19 @@
                 font: 0.8em 'Andale Mono', Consolas, 'Courier New';
                 line-height: 1.6em;
                 border-radius: 3px;
+            }
+
+            a.card
+            {
+                width: 300px;
+                min-height: 65px;
+                float: left;
+                margin: 0.2em;
+            }
+
+            a.card .card-body
+            {
+                padding: 0.4em;
             }
 
             a.card:hover
@@ -31,30 +44,35 @@
                 max-width: 24px;
                 max-height: 24px;
             }
+
+            ul
+            {
+                margin-bottom: 0;
+            }
         </style>
 
-        <h1><img src="/logo.png" style="width: 64px; height: 64px;" /> {{ settings.title }} <small> {{ env.ROXY_WEB_DOMAIN }}</small></h1>
+        <h1 class="mt-4"><img src="/logo.png" style="width: 64px; height: 64px;" /> {{ settings.title }} <small> {{ env.ROXY_WEB_DOMAIN }}</small></h1>
 
         <h2 class="mt-4">Services</h2>
 
-        <div class="row">
+        <div class="clearfix">
             {% if services is defined %}
             {% for name, service in services|dictsort %}
-            <div class="col-sm-4">
+
                 {% if service.url is defined %}
                     {% set url = service.url %}
                 {% else %}
                     {% set url = "//" ~ name ~ "." ~ env.ROXY_WEB_DOMAIN %}
                 {% endif %}
-                <a href="{{ url }}" title="{{ name }}" class="card mb-4">
+                <a href="{{ url }}" title="{{ name }}" class="card">
                     <div class="card-body">
-                        <div class="card-title">
-                            <span class="text-primary font-weight-bold"><img src="{{ url }}/favicon.ico"  onerror="this.style.display='none'" /> {{ name }}</span>
+                        <div class="">
+                            <span class="text-primary card-title"><img src="{{ url }}/favicon.ico"  onerror="this.style.display='none'" /> {{ name }}</span>
                             {% if service.tags is defined %}{% for tag in service.tags %}
-                            <label class="badge" style="background: {{ settings.tags[tag] }}">{{ tag }}</label>
+                            <label class="badge text-dark" style="background: {{ settings.tags[tag] }}">{{ tag }}</label>
                             {% endfor %}{% endif %}
                         </div>
-                        <p class="card-text text-secondary">
+                        <div class="card-text text-secondary small">
                             {% if service.url is defined %}
                                 {{ service.url }}
                             {% else %}
@@ -64,10 +82,10 @@
                                 {% endfor %}
                             </ul>
                             {% endif %}
-                        </p>
+                        </div>
                     </div>
                 </a>
-            </div>
+
             {% endfor %}
             {% endif %}
         </div>
