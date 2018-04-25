@@ -8,6 +8,12 @@ Roxy is a services aware reverse proxy, as a Docker image, for Docker containers
 
 ![roxy screenshot](https://github.com/ebuildy/roxy/raw/master/.assets/roxy.png)
 
+When container starts, before running Nginx HTTP server, Roxy generates:
+* Nginx configuration
+* index.html
+
+From jinja2 templates, via a simple python script that get data from a YML file.
+
 ## Usage
 
 ### data.yaml
