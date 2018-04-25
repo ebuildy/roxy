@@ -124,7 +124,10 @@ server
   		# Redirect unknow service to index
 		if ($service_upstream = "__not_found__")
 		{
-			return 301 $scheme://index.{{ env.ROXY_WEB_DOMAIN }};
+            #add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0";
+            expires -1;
+
+			return 307 $scheme://index.{{ env.ROXY_WEB_DOMAIN }};
 		}
 
 		proxy_pass http://$service_name;
