@@ -4,7 +4,7 @@ ENV ROXY_TEMPLATE_NGINX     /opt/roxy/templates/site.conf.j2
 ENV ROXY_TEMPLATE_HTML      /opt/roxy/templates/index.html.j2
 ENV ROXY_BUILDER            /opt/roxy/bin/app.py
 ENV ROXY_WEB_DOMAIN         roxy.127.0.0.1.xip.io
-ENV ROXY_VERSION            0.1.0
+ENV ROXY_VERSION            ${CACHE_TAG}
 ENV ROXY_DATA               /opt/roxy/data.yml
 
 RUN \
